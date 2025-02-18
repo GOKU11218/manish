@@ -1,0 +1,107 @@
+Verify apache logs.
+sudo tail -n 50 /var/log/apache2/error.log
+
+resolve permission issue.
+sudo mkdir -p /var/log/httpd/
+sudo chown -R www-data:www-data /var/log/httpd/
+sudo chmod -R 755 /var/log/httpd/
+ls -ld /var/log/httpd/
+sudo systemctl restart apache2
+
+Verify server-status Module is Enabled.
+sudo a2enmod status
+
+Add this in the /etc/apache2/apache2.conf to view server-status.
+<Location "/server-status">
+    SetHandler server-status
+    Require all granted
+</Location>
+
+Steps to configure HTTP/Password Authentication for Apache in Linux servers.
+For Debian/Ubuntu OS:
+
+STEP 1: Setup Basic HTTP Authentication credentials.
+
+Verify that you have apache2-utils package installed, if not run:
+sudo apt-get install apache2-utils
+
+We use a utility called “htpasswd” to create a file that will contain user and password which will be used to access restricted content.
+
+sudo htpasswd -c /etc/apache2/.htpasswd httpauth_user
+New password:
+Re-type new password:
+Adding password for user httpauth_user
+
+You’ll be asked to supply and confirm a password for user “httpauth_user”.
+
+If you would like to add additional users to the htpasswd file, remove the "-c" command flag so you don't overwrite the htpasswd file.
+Check the contents of password file
+
+cat /etc/apache2/.htpasswd
+httpauth_user:$apr1$zMuo27/6$XTUlvJbHEz5S0EgaC.Vsp0
+
+STEP 2: Configure Apache Password Authentication.
+
+Configure HTTP Authentication with virtual host.
+Edit the Virtual host and add the <Directory__> as mentioned below.
+
+sudo vim /etc/apache2/sites-available/domain.com.conf
+
+<VirtualHost *:80>
+ServerAdmin web@localhost
+DocumentRoot /var/www/html
+CustomLog /var/log/httpd/domain.com-access.log combined
+ErrorLog /var/log/httpd/domain.com-error.log
+
+<Directory "/var/www/html">
+AuthType Basic
+AuthName "Restricted Content"
+AuthUserFile /etc/apache2/.htpasswd
+Require valid-user
+</Directory>
+
+</VirtualHost>
+
+• Save and close the file when you are finished.
+• Now that the file has been created, there is one additional step for enabling Apache virtual hosts in Debian/Ubuntu. This is done with the use of the a2ensite tool. To enable the newly created Virtual Host, run the following command:
+
+sudo a2ensite domain.com.conf
+
+To be doubly sure the tool was successful, you can run the following command:
+sudo ls -lah /etc/apache2/sites-enabled | grep domain.com.conf
+
+This should return output showing the file is symlinked to this directory.
+Test and Restart/Reload Apache to implement your password policy:
+sudo apachectl -t
+sudo systemctl restart apache2
+OR
+$ sudo systemctl reload apache2
+
+Configure HTTP Authentication with .htaccess file.
+To setup password authentication with .htaccess file instead, you will need to edit main Apache main configuration to allow .htaccess file.
+Modify the, block from None to All
+sudo vim /etc/apache2/apache2.conf
+. . .
+
+<Directory /var/www/>
+Options Indexes FollowSymLinks
+AllowOverride All
+Require all granted
+</Directory>
+
+. . .
+
+Next, we need to add an .htaccess file to the directory we wish to restrict.
+sudo vim /var/www/html/.htaccess
+
+AuthType Basic
+AuthName "Restricted Content"
+AuthUserFile /etc/apache2/.htpasswd
+Require valid-user
+
+Save and close the file when you are finished. Test and Restart/Reload Apache to implement your password policy:
+
+sudo apachectl -t
+sudo systemctl restart apache2
+OR
+sudo systemctl reload apache2
